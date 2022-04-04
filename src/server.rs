@@ -2,6 +2,7 @@ use crate::teleport::*;
 use crate::teleport::{TeleportFeatures, TeleportStatus};
 use crate::teleport::{TeleportInit, TeleportInitAck};
 use crate::*;
+use rndz::tcp::Client;
 use std::fs;
 use std::fs::OpenOptions;
 use std::path::Path;
@@ -9,22 +10,44 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 /// Server function sets up a listening socket for any incoming connnections
 pub fn run(opt: Opt) -> Result<(), Error> {
-    // Bind to all interfaces on specified Port
-    let listener = match TcpListener::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, opt.port))) {
-        Ok(l) => l,
-        Err(s) => {
-            println!(
-                "Cannot bind to port: {:?}. Is Teleporter already running?",
-                &opt.port
-            );
-            return Err(s);
-        }
+    let mut _rndz_client = None;
+    let listener = if let Some(ref rndz_server) = opt.rndz_server {
+        let local_id = opt
+            .local_id
+            .as_ref()
+            .ok_or(Error::new(ErrorKind::InvalidInput, "local_id not set"))?;
+
+        println!("RNDZ Server {} local_id {}", rndz_server, local_id);
+
+        let mut c = Client::new(&rndz_server, &local_id, None)?;
+        c.listen()?;
+
+        let listener = c.as_socket().unwrap();
+        _rndz_client = Some(c);
+
+        listener
+    } else {
+        // Bind to all interfaces on specified Port
+        let listener = match TcpListener::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, opt.port)))
+        {
+            Ok(l) => l,
+            Err(s) => {
+                println!(
+                    "Cannot bind to port: {:?}. Is Teleporter already running?",
+                    &opt.port
+                );
+                return Err(s);
+            }
+        };
+
+        listener
     };
 
     // Print welcome banner
     println!(
-        "Teleporter Server {} listening for connections on 0.0.0.0:{}",
-        VERSION, &opt.port
+        "Teleporter Server {} listening for connections on {}",
+        VERSION,
+        listener.local_addr().unwrap()
     );
 
     // Print warning banner for dangerous options
@@ -39,7 +62,7 @@ pub fn run(opt: Opt) -> Result<(), Error> {
         let args = opt.clone();
         let s = match stream {
             Ok(s) => s,
-            _ => continue,
+            _ => break,
         };
         // Receive connections in recv function
         let recv_list_clone = Arc::clone(&recv_list);

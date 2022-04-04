@@ -35,6 +35,15 @@ pub struct Opt {
     #[structopt(short, long, default_value = "9001")]
     port: u16,
 
+    #[structopt(long)]
+    rndz_server: Option<String>,
+
+    #[structopt(long)]
+    local_id: Option<String>,
+
+    #[structopt(long)]
+    remote_id: Option<String>,
+
     /// Overwrite remote file
     #[structopt(short, long)]
     overwrite: bool,
@@ -76,6 +85,10 @@ const PROTOCOL: u64 = 0x54524f50454c4554;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() {
+    env_logger::init_from_env(
+        env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info"),
+    );
+
     // Process arguments
     let opt = Opt::from_args();
     let out;

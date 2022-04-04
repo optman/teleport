@@ -3,6 +3,7 @@ use crate::teleport::{TeleportAction, TeleportFeatures, TeleportStatus};
 use crate::teleport::{TeleportInit, TeleportInitAck};
 use crate::utils::print_updates;
 use crate::*;
+use rndz::tcp::Client;
 use std::path::Path;
 
 #[derive(Debug)]
@@ -211,20 +212,42 @@ pub fn run(mut opt: Opt) -> Result<(), Error> {
         header.filename = filename.chars().collect();
 
         // Connect to server
-        let addr = format!("{}:{}", opt.dest, opt.port);
-        let mut stream = match TcpStream::connect(match addr.parse::<SocketAddr>() {
-            Ok(a) => a,
-            Err(_) => {
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
-                    "Error with destination address",
-                ))
-            }
-        }) {
-            Ok(s) => s,
-            Err(s) => {
-                println!("Error connecting to: {}:{}", opt.dest, opt.port);
-                return Err(s);
+        let mut stream = if let Some(ref rndz_server) = opt.rndz_server {
+            let local_id = opt
+                .local_id
+                .as_ref()
+                .ok_or(Error::new(ErrorKind::InvalidInput, "local_id not set"))?;
+            let remote_id = opt
+                .remote_id
+                .as_ref()
+                .ok_or(Error::new(ErrorKind::InvalidInput, "remote_id not set"))?;
+
+            println!("rndz {}: {} -> {}", rndz_server, local_id, remote_id);
+
+            let mut c = Client::new(rndz_server, &local_id, None)?;
+            let s = c.connect(&remote_id)?;
+            println!(
+                "connect {} at {} success",
+                remote_id,
+                s.peer_addr().unwrap()
+            );
+            s
+        } else {
+            let addr = format!("{}:{}", opt.dest, opt.port);
+            match TcpStream::connect(match addr.parse::<SocketAddr>() {
+                Ok(a) => a,
+                Err(_) => {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Error with destination address",
+                    ))
+                }
+            }) {
+                Ok(s) => s,
+                Err(s) => {
+                    println!("Error connecting to: {}:{}", opt.dest, opt.port);
+                    return Err(s);
+                }
             }
         };
 
