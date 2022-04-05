@@ -35,13 +35,13 @@ pub struct Opt {
     #[structopt(short, long, default_value = "9001")]
     port: u16,
 
-    #[structopt(long)]
+    #[structopt(long, env = "RNDZ_SERVER")]
     rndz_server: Option<String>,
 
-    #[structopt(long)]
+    #[structopt(long, env = "LOCAL_ID")]
     local_id: Option<String>,
 
-    #[structopt(long)]
+    #[structopt(long, env = "REMOTE_ID")]
     remote_id: Option<String>,
 
     /// Overwrite remote file

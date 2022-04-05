@@ -216,11 +216,13 @@ pub fn run(mut opt: Opt) -> Result<(), Error> {
             let local_id = opt
                 .local_id
                 .as_ref()
-                .ok_or(Error::new(ErrorKind::InvalidInput, "local_id not set"))?;
+                .map(|s| s.clone())
+                .unwrap_or(utils::random_id());
+
             let remote_id = opt
                 .remote_id
                 .as_ref()
-                .ok_or(Error::new(ErrorKind::InvalidInput, "remote_id not set"))?;
+                .ok_or(Error::new(ErrorKind::InvalidInput, "remote-id not set"))?;
 
             println!("rndz {}: {} -> {}", rndz_server, local_id, remote_id);
 

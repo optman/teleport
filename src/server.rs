@@ -10,22 +10,28 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 /// Server function sets up a listening socket for any incoming connnections
 pub fn run(opt: Opt) -> Result<(), Error> {
-    let mut _rndz_client = None;
-    let listener = if let Some(ref rndz_server) = opt.rndz_server {
+    let (listener, _rndz) = if let Some(ref rndz_server) = opt.rndz_server {
         let local_id = opt
             .local_id
             .as_ref()
-            .ok_or(Error::new(ErrorKind::InvalidInput, "local_id not set"))?;
+            .map(|s| s.clone())
+            .unwrap_or(utils::random_id());
 
-        println!("RNDZ Server {} local_id {}", rndz_server, local_id);
+        println!(
+            "RNDZ Server {} local_id {} local_port {}",
+            rndz_server, local_id, opt.port
+        );
 
-        let mut c = Client::new(&rndz_server, &local_id, None)?;
+        let mut c = Client::new(
+            &rndz_server,
+            &local_id,
+            Some(SocketAddr::from((Ipv4Addr::UNSPECIFIED, opt.port))),
+        )?;
         c.listen()?;
 
         let listener = c.as_socket().unwrap();
-        _rndz_client = Some(c);
 
-        listener
+        (listener, Some(c))
     } else {
         // Bind to all interfaces on specified Port
         let listener = match TcpListener::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, opt.port)))
@@ -40,7 +46,7 @@ pub fn run(opt: Opt) -> Result<(), Error> {
             }
         };
 
-        listener
+        (listener, None)
     };
 
     // Print welcome banner

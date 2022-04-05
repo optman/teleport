@@ -3,6 +3,7 @@ use crate::teleport::{TeleportAction, TeleportEnc, TeleportFeatures, TeleportHea
 use crate::*;
 use byteorder::{LittleEndian, ReadBytesExt};
 use rand::prelude::*;
+use rand::{distributions::Alphanumeric, Rng};
 use std::hash::Hasher;
 use xxhash_rust::xxh3;
 
@@ -217,4 +218,12 @@ pub fn calc_delta_hash(mut file: &File) -> Result<teleport::TeleportDelta, Error
     file.seek(SeekFrom::Start(0))?;
 
     Ok(out)
+}
+
+pub(crate) fn random_id() -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(7)
+        .map(char::from)
+        .collect()
 }
